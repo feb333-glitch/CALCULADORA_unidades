@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Unidades - Integridad y Ductos</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #0083b0;
+            --result-color: #facc15;
+            --border-color: #334155;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 650px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 2rem;
+            color: var(--text-color);
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .form-row {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        .form-row > .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+        select, input {
+            padding: 0.85rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            appearance: auto;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(0, 131, 176, 0.3);
+        }
+        .result-container {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        .result-text {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: var(--result-color);
+            word-break: break-word;
+        }
+        .footer {
+            margin-top: 2.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conversor de Unidades para Integridad y Ductos</h1>
+        
+        <div class="form-group">
+            <label for="categoria">Categoría de Magnitud:</label>
+            <select id="categoria"></select>
+        </div>
+        
+        <div class="form-group">
+            <label for="valor">Valor a convertir:</label>
+            <input type="number" id="valor" placeholder="Ingrese número..." step="any">
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="unidad_desde">De:</label>
+                <select id="unidad_desde"></select>
+            </div>
+            <div class="form-group">
+                <label for="unidad_hacia">A:</label>
+                <select id="unidad_hacia"></select>
+            </div>
+        </div>
+        
+        <div class="result-container">
+            <div class="result-text" id="resultado">Resultado: -</div>
+        </div>
+        
+        <div class="footer">
+            APP_TENSIONES · Herramienta Web
+        </div>
+    </div>
+
+    <script>
+        const factores = {
+            "Presión": {
+                "bar": 1.0,
+                "psi": 0.0689476,
+                "MPa": 10.0,
+                "kPa": 0.01,
+                "kgf/cm²": 0.980665,
+                "atm": 1.01325,
+            },
+            "Tensión / SMYS (Estrés)": {
+                "MPa": 1.0,
+                "psi": 0.00689476,
+                "ksi": 6.89476,
+                "N/mm²": 1.0,
+                "bar": 0.1,
+            },
+            "Dimensiones (Diámetro/Espesor)": {
+                "mm": 1.0,
+                "pulgadas (in)": 25.4,
+                "m": 1000.0,
+                "cm": 10.0,
+            },
+            "Caudal Volumétrico": {
+                "m³/h": 1.0,
+                "m³/d": 1 / 24,
+                "MMSCFD": 1179.87 / 24,
+                "GPM (US)": 0.227124,
+            },
+            "Masa": {
+                "kg": 1.0,
+                "lb": 0.453592,
+                "ton (métrica)": 1000.0,
+            },
+            "Velocidad de Corrosión": {
+                "mm/año": 1.0,
+                "mpy (mils/year)": 0.0254,
+            },
+            "Temperatura": ["°C", "°F", "K"]
+        };
+
+        const cbCategoria = document.getElementById('categoria');
+        const txtValor = document.getElementById('valor');
+        const cbDesde = document.getElementById('unidad_desde');
+        const cbHacia = document.getElementById('unidad_hacia');
+        const lblResultado = document.getElementById('resultado');
+
+        Object.keys(factores).forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            cbCategoria.appendChild(opt);
+        });
+
+        function actualizarUnidades() {
+            const cat = cbCategoria.value;
+            let unidades = cat === "Temperatura" ? factores[cat] : Object.keys(factores[cat]);
+
+            cbDesde.innerHTML = '';
+            cbHacia.innerHTML = '';
+
+            unidades.forEach(u => {
+                cbDesde.appendChild(new Option(u, u));
+                cbHacia.appendChild(new Option(u, u));
+            });
+
+            if (unidades.length > 1) cbHacia.selectedIndex = 1;
+            convertir();
+        }
+
+        function convertirTemperatura(val, u_desde, u_hacia) {
+            if (u_desde === u_hacia) return val;
+            
+            let celsius = val;
+            if (u_desde === "°F") celsius = (val - 32) * 5 / 9;
+            else if (u_desde === "K") celsius = val - 273.15;
+
+            if (u_hacia === "°F") return (celsius * 9 / 5) + 32;
+            else if (u_hacia === "K") return celsius + 273.15;
+            return celsius;
+        }
+
+        function convertir() {
+            const valStr = txtValor.value;
+            if (!valStr || isNaN(valStr)) {
+                lblResultado.textContent = "Resultado: -";
+                return;
+            }
+
+            const valor = parseFloat(valStr);
+            const cat = cbCategoria.value;
+            const u_desde = cbDesde.value;
+            const u_hacia = cbHacia.value;
+
+            let res;
+            if (cat === "Temperatura") {
+                res = convertirTemperatura(valor, u_desde, u_hacia);
+            } else {
+                const base = valor * factores[cat][u_desde];
+                res = base / factores[cat][u_hacia];
+            }
+
+            // Formatear con máximo 4 decimales
+            const formatRes = Number.isInteger(res) ? res.toString() : res.toFixed(4).replace(/\.?0+$/, '');
+            lblResultado.textContent = `Resultado: ${formatRes} ${u_hacia}`;
+        }
+
+        cbCategoria.addEventListener('change', actualizarUnidades);
+        txtValor.addEventListener('input', convertir);
+        cbDesde.addEventListener('change', convertir);
+        cbHacia.addEventListener('change', convertir);
+
+        actualizarUnidades();
+    </script>
+</body>
+</html>
